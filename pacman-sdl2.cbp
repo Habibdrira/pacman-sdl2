@@ -30,11 +30,11 @@
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
-			<Add directory="C:/Users/habib/Desktop/pacman-sdl2/SDL2/include" />
+			<Add directory="SDL2/include" />
 		</Compiler>
 		<Linker>
 			<Add option="-lmingw32 -lSDL2main -lSDL2" />
-			<Add directory="C:/Users/habib/Desktop/pacman-sdl2/SDL2/lib" />
+			<Add directory="SDL2/lib" />
 		</Linker>
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
