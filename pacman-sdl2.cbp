@@ -31,14 +31,35 @@
 		<Compiler>
 			<Add option="-Wall" />
 			<Add directory="SDL2/include" />
+			<Add directory="SDL2_image/include" />
+			<Add directory="SDL2_ttf/include" />
 		</Compiler>
 		<Linker>
-			<Add option="-lmingw32 -lSDL2main -lSDL2" />
+			<Add option="-lmingw32 -lSDL2main -lSDL2 -lSDL2_image" />
+			<Add option="-lSDL2_ttf" />
 			<Add directory="SDL2/lib" />
+			<Add directory="SDL2_image/lib" />
+			<Add directory="SDL2_ttf/lib" />
 		</Linker>
+		<Unit filename="game.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="game.h" />
+		<Unit filename="ghost.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="ghost.h" />
+		<Unit filename="graphics.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="graphics.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
+		<Unit filename="pacman.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="pacman.h" />
 		<Extensions>
 			<lib_finder disable_auto="1" />
 		</Extensions>
