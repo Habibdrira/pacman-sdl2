@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <math.h>
 
 #define SCREEN_WIDTH 600
@@ -10,7 +11,6 @@
 #define PACMAN_SPEED 20
 #define GHOST_SPEED 1
 #define NUM_DESTINATIONS 3
-#define DEST_RADIUS 10  // Destination radius for ghosts
 
 typedef struct {
     int x, y;
@@ -27,6 +27,7 @@ typedef struct {
 
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
+TTF_Font* font = NULL;
 
 char maze[ROWS][COLS] = {
     "#############################",
@@ -49,9 +50,36 @@ char maze[ROWS][COLS] = {
     "#############################"
 };
 
+// Function to initialize the maze points
+void initializeMazePoints() {
+    for (int i = 0; i < ROWS; ++i) {
+        for (int j = 0; j < COLS; ++j) {
+            if (maze[i][j] == '.') {
+                maze[i][j] = 'o';  // 'o' represents a point
+            }
+        }
+    }
+}
+
+// Function to update the score and remove points when Pac-Man collects them
+void collectPoints(Pacman* pacman, int x, int y) {
+    int gridX = x / 20;
+    int gridY = y / 20;
+
+    if (maze[gridY][gridX] == 'o') {
+        pacman->score += 5;  // Increase the score by 5 when Pac-Man collects a point
+        maze[gridY][gridX] = ' ';  // Remove the point from the maze
+    }
+}
+
 void initializeSDL() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "Erreur lors de l'initialisation de SDL : %s\n", SDL_GetError());
+        exit(1);
+    }
+
+    if (TTF_Init() < 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de TTF : %s\n", TTF_GetError());
         exit(1);
     }
 
@@ -68,11 +96,20 @@ void initializeSDL() {
         fprintf(stderr, "Erreur lors de la création du rendu : %s\n", SDL_GetError());
         exit(1);
     }
+
+    font = TTF_OpenFont("arial.ttf", 24);  // Adjust the font size as needed
+
+    if (font == NULL) {
+        fprintf(stderr, "Erreur lors du chargement de la police : %s\n", TTF_GetError());
+        exit(1);
+    }
 }
 
 void closeSDL() {
+    TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    TTF_Quit();
     SDL_Quit();
 }
 
@@ -134,10 +171,10 @@ void movePacman(Pacman* pacman) {
     }
 }
 
-void moveGhosts(Ghost ghosts[], int dests[][2]) {
+void moveGhosts(Ghost ghosts[]) {
     for (int i = 0; i < 4; ++i) {
-        int targetX = dests[i][0];
-        int targetY = dests[i][1];
+        int targetX = ghosts[i].x;
+        int targetY = ghosts[i].y;
 
         if (ghosts[i].x < targetX) {
             ghosts[i].vx = GHOST_SPEED;
@@ -158,74 +195,12 @@ void moveGhosts(Ghost ghosts[], int dests[][2]) {
         ghosts[i].x += ghosts[i].vx;
         ghosts[i].y += ghosts[i].vy;
 
-        if (isObstacle(ghosts[i].x, ghosts[i].y) ||
-            (abs(ghosts[i].x - targetX) < DEST_RADIUS && abs(ghosts[i].y - targetY) < DEST_RADIUS)) {
-            // If obstacle or close to destination, choose a new random destination
-            dests[i][0] = rand() % SCREEN_WIDTH;
-            dests[i][1] = rand() % SCREEN_HEIGHT;
+        if (isObstacle(ghosts[i].x, ghosts[i].y)) {
+            ghosts[i].vx = -ghosts[i].vx;
+            ghosts[i].vy = -ghosts[i].vy;
         }
     }
 }
-void initializePacman(Pacman* pacman) {
-    pacman->x = SCREEN_WIDTH / 2;
-    pacman->y = SCREEN_HEIGHT / 2;
-    pacman->lives = 3;
-    pacman->score = 0;
-    pacman->direction = 0;
-}
-void handleCollisionsWithGhosts(Pacman* pacman, Ghost ghosts[]) {
-    for (int i = 0; i < 4; ++i) {
-        if (checkCollision(pacman->x, pacman->y, ghosts[i].x, ghosts[i].y)) {
-            // Pacman collides with a ghost
-            pacman->lives--;
-
-            if (pacman->lives == 0) {
-                printf("Game Over\n");
-                exit(0); // End the game
-            } else {
-                printf("Pacman lost a life. Lives remaining: %d\n", pacman->lives);
-                initializePacman(pacman);
-            }
-        }
-    }
-}
-void updateScore(Pacman* pacman, int points) {
-    pacman->score += points;
-    printf("Score: %d\n", pacman->score);  // Print the score to the console
-}
-void checkCollisions(Pacman* pacman, Ghost ghosts[]) {
-    int pacmanGridX = pacman->x / 20;
-    int pacmanGridY = pacman->y / 20;
-
-    for (int i = 0; i < 4; ++i) {
-        if (checkCollision(pacman->x, pacman->y, ghosts[i].x, ghosts[i].y)) {
-            // Pacman collides with a ghost
-            pacman->lives--;
-
-            if (pacman->lives == 0) {
-                printf("Game Over\n");
-                exit(0); // End the game
-            } else {
-                printf("Pacman lost a life. Lives remaining: %d\n", pacman->lives);
-                pacman->x = SCREEN_WIDTH / 2;
-                pacman->y = SCREEN_HEIGHT / 2;
-            }
-        }
-    }
-
-    if (maze[pacmanGridY][pacmanGridX] == '.') {
-        updateScore(pacman, 20);
-        maze[pacmanGridY][pacmanGridX] = ' ';
-    }
-}
-void handleLivesDisplay(Pacman* pacman) {
-    printf("Lives: ");
-    for (int i = 0; i < pacman->lives; ++i) {
-        printf("❤ ");
-    }
-    printf("\n");
-}
-
 
 void renderGame(Pacman* pacman, Ghost ghosts[]) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
@@ -234,19 +209,13 @@ void renderGame(Pacman* pacman, Ghost ghosts[]) {
     for (int i = 0; i < ROWS; ++i) {
         for (int j = 0; j < COLS; ++j) {
             if (maze[i][j] == '#') {
-                SDL_SetRenderDrawColor(renderer, 128, 128, 128, 128);
+                SDL_SetRenderDrawColor(renderer, 128, 128, 128, 255);
                 SDL_Rect obstacleRect = {j * 20, i * 20, 12, 12};
                 SDL_RenderFillRect(renderer, &obstacleRect);
-            } else if (maze[i][j] == '.') {
-                if ((j % 4 == 0) && (i % 5 == 0)) {
-                    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                    SDL_Rect alimentationRect = {j * 20, i * 20, 15, 15};
-                    SDL_RenderFillRect(renderer, &alimentationRect);
-                } else {
-                    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                    SDL_Rect pointRect = {j * 20 + 4, i * 20 + 4, 4, 4};
-                    SDL_RenderFillRect(renderer, &pointRect);
-                }
+            } else if (maze[i][j] == 'o') {
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+                SDL_Rect pointRect = {j * 20 + 8, i * 20 + 8, 4, 4};
+                SDL_RenderFillRect(renderer, &pointRect);
             }
         }
     }
@@ -261,34 +230,38 @@ void renderGame(Pacman* pacman, Ghost ghosts[]) {
         SDL_RenderFillRect(renderer, &ghostRect);
     }
 
+    // Render the score on the top left corner
+    SDL_Color textColor = {255, 255, 255};
+    char scoreText[50];
+    snprintf(scoreText, sizeof(scoreText), "Score: %d", pacman->score);
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, scoreText, textColor);
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_Rect textRect = {10, 10, textSurface->w, textSurface->h};
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    SDL_FreeSurface(textSurface);
+    SDL_DestroyTexture(textTexture);
+
     SDL_RenderPresent(renderer);
 }
 
 int main(int argc, char* argv[]) {
     initializeSDL();
+    initializeMazePoints();  // Call the function to initialize maze points
 
-    Pacman pacman = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 3, 0, 0, 0};
+    Pacman pacman = {SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, 3, 0, 0, 0}; // Initialize score to 0
     Ghost ghosts[4] = {{190, 190, GHOST_SPEED, GHOST_SPEED},
                       {198, 198, -GHOST_SPEED, -GHOST_SPEED},
                       {204, 204, GHOST_SPEED, -GHOST_SPEED},
                       {212, 212, -GHOST_SPEED, GHOST_SPEED}};
-
-    int dests[4][2];
-
-    // Initialize random destinations for ghosts
-    for (int i = 0; i < 4; ++i) {
-        dests[i][0] = rand() % SCREEN_WIDTH;
-        dests[i][1] = rand() % SCREEN_HEIGHT;
-    }
 
     SDL_Event e;
 
     while (1) {
         handleInput(&pacman);
         movePacman(&pacman);
-        moveGhosts(ghosts, dests);
-        checkCollisions(&pacman, ghosts);
-        handleLivesDisplay(&pacman);
+        moveGhosts(ghosts);
+        collectPoints(&pacman, pacman.x, pacman.y);
         renderGame(&pacman, ghosts);
         SDL_Delay(16);
     }
